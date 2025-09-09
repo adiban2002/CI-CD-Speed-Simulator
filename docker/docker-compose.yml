@@ -1,0 +1,28 @@
+# docker/docker-compose.yml
+services:
+  base:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.base
+    container_name: cicd-base-container
+    working_dir: /CI-CD-Speed-Simulator
+    environment:
+      - PYTHONPATH=/CI-CD-Speed-Simulator 
+    volumes:
+      - ..:/CI-CD-Speed-Simulator
+    stdin_open: true
+    tty: true
+    command: ["python3"]
+
+  simulator:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.simulator
+    container_name: cicd-simulator-container
+    working_dir: /CI-CD-Speed-Simulator
+    volumes:
+      - ..:/CI-CD-Speed-Simulator
+    stdin_open: true
+    tty: true
+    depends_on:
+      - base

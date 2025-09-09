@@ -1,0 +1,22 @@
+# docker/Dockerfile.base
+
+# Start from an official lightweight Python image
+FROM python:3.12-slim
+
+# Set working directory inside container
+WORKDIR /CI-CD-Speed-Simulator
+
+# Install system dependencies (optional but useful for builds)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements first (for better caching)
+COPY requirements.txt .
+
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Default command (can be overridden by child images)
+CMD ["python3"]
