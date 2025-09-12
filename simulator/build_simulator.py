@@ -1,5 +1,6 @@
 import csv
 import os
+import random
 from simulator.strategy import (
     sequential_build,
     parallel_build,
@@ -15,6 +16,7 @@ from simulator.strategy import (
     hrrn_scheduling
 )
 
+# Create logs folder if not exists
 os.makedirs("logs", exist_ok=True)
 
 LOG_FILE = os.path.join("logs", "results.csv")
@@ -138,11 +140,16 @@ def scheduling_phase():
     arrival_times = []
     burst_times = []
 
-    for i in range(n):
-        at = int(input(f"Arrival time of job {i+1}: "))
-        bt = int(input(f"Burst time of job {i+1}: "))
-        arrival_times.append(at)
-        burst_times.append(bt)
+    if n <= 200:
+        for i in range(n):
+            at = int(input(f"Arrival time of job {i+1}: "))
+            bt = int(input(f"Burst time of job {i+1}: "))
+            arrival_times.append(at)
+            burst_times.append(bt)
+    else:
+        print(f"\nGenerating dataset automatically for {n} jobs...")
+        arrival_times = [random.randint(0, 1000) for _ in range(n)]
+        burst_times = [random.randint(1, 20) for _ in range(n)]
 
     print("\nChoose Scheduling Algorithm:")
     print("  1. FCFS")
@@ -163,13 +170,14 @@ def scheduling_phase():
         print("Invalid choice!")
         return
 
-    print("\n--- Results ---")
-    for i in range(n):
-        print(f"Job {i+1}: AT={arrival_times[i]}, BT={burst_times[i]}, "
-              f"CT={result['completion_times'][i]}, "
-              f"TAT={result['turnaround_times'][i]}, "
-              f"WT={result['waiting_times'][i]}, "
-              f"RT={result['response_times'][i]}")
+    if n <= 200:
+        print("\n--- Results ---")
+        for i in range(n):
+            print(f"Job {i+1}: AT={arrival_times[i]}, BT={burst_times[i]}, "
+                  f"CT={result['completion_times'][i]}, "
+                  f"TAT={result['turnaround_times'][i]}, "
+                  f"WT={result['waiting_times'][i]}, "
+                  f"RT={result['response_times'][i]}")
 
     print(f"\nAverage Waiting Time: {result['avg_waiting']:.2f}")
     print(f"Average Turnaround Time: {result['avg_turnaround']:.2f}")
