@@ -1,0 +1,73 @@
+phase,strategy,algorithm,total_time,speedup,efficiency,avg_load,max_load,min_load,variance,fairness_index,load_imbalance,avg_waiting,avg_turnaround,avg_response
+Build,Sequential Build,,15000000,1,1,,,,,,,,,
+Build,Parallel Build,,2500,6000,1,,,,,,,,,
+Build,Cached Build,,9500000,1.58,1.58,,,,,,,,,
+Build,Slim Image Build,,10500000,1.43,1.43,,,,,,,,,
+LoadBalancing,,Round Robin,,,,0.67,1,0,0.22,0.6667,1,,,
+LoadBalancing,,Least Connections,,,,0.67,1,0,0.22,0.6667,1,,,
+LoadBalancing,,Random,,,,0.67,6,0,0.66,0.4017,6,,,
+LoadBalancing,,Genetic Algorithm (Load Balancing),,,,0.67,5,0,0.63,0.4119,5,,,
+Scheduling,,FCFS,,,,,,,,,,8.13,11.2,8.13
+Scheduling,,SJF,,,,,,,,,,6.13,9.2,6.13
+Scheduling,,SRTF,,,,,,,,,,6.07,9.13,6
+Scheduling,,HRRN,,,,,,,,,,7.13,10.2,7.13
+Build,Sequential Build,,40000000,1,1,,,,,,,,,
+Build,Parallel Build,,5000,8000,1,,,,,,,,,
+Build,Cached Build,,27500000,1.45,1.45,,,,,,,,,
+Build,Slim Image Build,,28000000,1.43,1.43,,,,,,,,,
+LoadBalancing,,Round Robin,,,,0.78,1,0,0.17,0.7778,1,,,
+LoadBalancing,,Least Connections,,,,0.78,1,0,0.17,0.7778,1,,,
+LoadBalancing,,Random,,,,0.78,6,0,0.77,0.4403,6,,,
+LoadBalancing,,Genetic Algorithm (Load Balancing),,,,0.78,6,0,0.75,0.4471,6,,,
+Scheduling,,FCFS,,,,,,,,,,165.12,174.07,165.12
+Scheduling,,SJF,,,,,,,,,,96.78,105.72,96.78
+Scheduling,,SRTF,,,,,,,,,,96.53,105.47,96.28
+Scheduling,,HRRN,,,,,,,,,,104.65,113.6,104.65
+Build,Sequential Build,,4800000,1,1,,,,,,,,,
+Build,Parallel Build,,400,12000,1,,,,,,,,,
+Build,Cached Build,,4000000,1.2,1.2,,,,,,,,,
+Build,Slim Image Build,,3360000,1.43,1.43,,,,,,,,,
+LoadBalancing,,Round Robin,,,,0.8,1,0,0.16,0.8,1,,,
+LoadBalancing,,Least Connections,,,,0.8,1,0,0.16,0.8,1,,,
+LoadBalancing,,Random,,,,0.8,6,0,0.8,0.4441,6,,,
+LoadBalancing,,Genetic Algorithm (Load Balancing),,,,0.8,6,0,0.76,0.4573,6,,,
+Scheduling,,FCFS,,,,,,,,,,194.09,200.11,194.09
+Scheduling,,SJF,,,,,,,,,,152.42,158.44,152.42
+Scheduling,,SRTF,,,,,,,,,,152.34,158.36,152.27
+Scheduling,,HRRN,,,,,,,,,,161.32,167.34,161.32
+Build,Sequential Build,,1000000,1.00,1.00,,,,,,,,,
+Build,Parallel Build,,50,20000.00,1.00,,,,,,,,,
+Build,Cached Build,,875000,1.14,1.14,,,,,,,,,
+Build,Slim Image Build,,700000,1.43,1.43,,,,,,,,,
+LoadBalancing,,Round Robin,,,,0.50,1,0,0.25,0.5000,1.00,,,
+LoadBalancing,,Least Connections,,,,0.50,1,0,0.25,0.5000,1.00,,,
+LoadBalancing,,Random,,,,0.50,6,0,0.50,0.3319,6.00,,,
+LoadBalancing,,Genetic Algorithm (Load Balancing),,,,0.50,5,0,0.49,0.3385,5.00,,,
+Scheduling,,FCFS,,,,,,,,,,12772.44,12949.81,12772.44
+Scheduling,,SJF,,,,,,,,,,12095.06,12272.42,12095.06
+Scheduling,,SRTF,,,,,,,,,,12095.06,12272.42,12095.06
+Scheduling,,HRRN,,,,,,,,,,12095.80,12273.16,12095.80
+Scheduling,,FCFS,,,,,,,,,,9942.28,9952.78,9942.28
+Scheduling,,SJF,,,,,,,,,,6715.68,6726.24,6715.68
+Scheduling,,SRTF,,,,,,,,,,6909.62,6920.31,6906.78
+Scheduling,,HRRN,,,,,,,,,,6738.98,6749.52,6738.98
+Scheduling,,FCFS,,,,,,,,,,20831.93,20842.57,20831.93
+Scheduling,,SJF,,,,,,,,,,14103.47,14114.09,14103.47
+Scheduling,,SRTF,,,,,,,,,,13634.35,13644.71,13630.91
+Scheduling,,HRRN,,,,,,,,,,13814.51,13824.98,13814.51
+Scheduling,,FCFS,,,,,,,,,,31468.68,31479.25,31468.68
+Scheduling,,SJF,,,,,,,,,,21040.88,21051.42,21040.88
+Scheduling,,SRTF,,,,,,,,,,20873.00,20883.46,20872.98
+Scheduling,,HRRN,,,,,,,,,,20940.16,20950.61,20940.16
+Scheduling,,FCFS,,,,,,,,,,41115.05,41125.53,41115.05
+Scheduling,,SJF,,,,,,,,,,28334.07,28344.61,28334.07
+Scheduling,,SRTF,,,,,,,,,,28671.90,28682.51,28671.89
+Scheduling,,HRRN,,,,,,,,,,27870.12,27880.56,27870.12
+Scheduling,,FCFS,,,,,,,,,,52346.98,52357.51,52346.98
+Scheduling,,SJF,,,,,,,,,,35610.50,35621.03,35610.50
+Scheduling,,SRTF,,,,,,,,,,35260.18,35270.63,35259.95
+Scheduling,,HRRN,,,,,,,,,,35097.79,35108.23,35097.79
+LoadBalancing,,Round Robin,,,,0.75,1,0,0.19,0.7500,1.00,,,
+LoadBalancing,,Least Connections,,,,0.75,1,0,0.19,0.7500,1.00,,,
+LoadBalancing,,Random,,,,0.75,6,0,0.75,0.4271,6.00,,,
+LoadBalancing,,Genetic Algorithm (Load Balancing),,,,0.75,6,0,0.72,0.4395,6.00,,,
