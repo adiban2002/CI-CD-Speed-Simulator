@@ -98,6 +98,65 @@ Methodology:
         (c)HRRN (Highest Response Ratio Next) – balances fairness and efficiency.
 
         Metrics analyzed include average waiting time, turnaround time, and response time, which mirror QoS (Quality of Service) in cloud scheduling.
+  How to Run
+    1. Running Locally(currently):
+    - Open terminal
+    - Run: python3 -m simulator.build_simulator
+    - Then: python3 -m simulator.plot_results
+
+    2. Running with Docker(optional but then handle .dockerignore and .gitigonre 
+    carefuuly,if needed then update these two files):
+    - Run: docker-compose up --build
+    - Use docker logs to monitor execution
+
+    3. Data and Logs:
+   - Results stored in logs/results.csv
+   - Graphs in ./graphs/
+
+ Current .gitignore
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+*.egg
+# Virtual environment
+.venv/
+env/
+venv/
+# Logs and results
+logs/*.log
+logs/*.txt
+results.csv
+# IDE / Editor files
+.vscode/
+.idea/
+# System files
+.DS_Store
+Thumbs.db
+
+Current .dockerignore
+# Ignore Python cache
+__pycache__/
+  
+*.pyc
+*.pyo
+*.pyd
+# Ignore venv
+.venv/
+env/
+venv/
+# Ignore git and docker files
+.git
+.gitignore
+.dockerignore
+# Ignore test and logs
+tests/
+logs/
+*.log
+*.txt
+results.csv
 
 Graphs:
 (1)Build Phase
