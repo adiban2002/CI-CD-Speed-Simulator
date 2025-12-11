@@ -53,11 +53,28 @@ def slim_image_build(num_services: int, avg_time: int, slimming_factor: float = 
 
 
 def compute_load_metrics(distribution: List[int]) -> Dict:
-    avg_load = sum(distribution) / len(distribution)
+    """
+    Compute common load metrics used by all load-balancing algorithms.
+    """
+    n = len(distribution)
+    if n == 0:
+        return {
+            "distribution": distribution,
+            "average_load": 0,
+            "max_load": 0,
+            "min_load": 0,
+            "variance": 0,
+            "fairness_index": 1.0,
+            "load_imbalance": 0
+        }
+
+    total = sum(distribution)
+    avg_load = total / n
     max_load_value = max(distribution)
     min_load_value = min(distribution)
-    variance = statistics.pvariance(distribution)
-    fairness = sum(distribution) ** 2 / (len(distribution) * sum(x ** 2 for x in distribution)) if sum(distribution) > 0 else 1.0
+    variance = statistics.pvariance(distribution) if n > 0 else 0
+    sum_sq = sum(x ** 2 for x in distribution)
+    fairness = (total ** 2 / (n * sum_sq)) if total > 0 and sum_sq > 0 else 1.0
     load_imbalance = max_load_value - min_load_value
     return {
         "distribution": distribution,
@@ -101,7 +118,8 @@ def random_load(requests: int, num_services: int) -> Dict:
 def genetic_algorithm_load(requests: int, num_services: int,
                            generations: int = 50, population_size: int = 10) -> Dict:
     def fitness(distribution: List[int]) -> float:
-        return -statistics.pvariance(distribution)
+        # maximize negative variance -> more balanced = higher fitness (less variance)
+        return -statistics.pvariance(distribution) if len(distribution) > 0 else 0.0
 
     population = []
     for _ in range(population_size):
@@ -112,11 +130,13 @@ def genetic_algorithm_load(requests: int, num_services: int,
 
     for _ in range(generations):
         population = sorted(population, key=fitness, reverse=True)
-        new_population = population[:2]
+        new_population = population[:2]  # elitism: keep top 2
 
         while len(new_population) < population_size:
-            p1, p2 = random.sample(population[:5], 2)
-            cut = random.randint(1, num_services - 1)
+            # choose parents from the top half (or fewer if small pop)
+            top_k = max(2, min(len(population), population_size // 2))
+            p1, p2 = random.sample(population[:top_k], 2)
+            cut = random.randint(1, num_services - 1) if num_services > 1 else 0
             child = p1[:cut] + p2[cut:]
             diff = requests - sum(child)
             for _ in range(abs(diff)):
@@ -127,8 +147,9 @@ def genetic_algorithm_load(requests: int, num_services: int,
                     child[idx] -= 1
             new_population.append(child)
 
+        # mutation
         for i in range(2, population_size):
-            if random.random() < 0.2:
+            if random.random() < 0.2 and num_services > 1:
                 a, b = random.sample(range(num_services), 2)
                 if new_population[i][a] > 0:
                     new_population[i][a] -= 1
@@ -141,8 +162,24 @@ def genetic_algorithm_load(requests: int, num_services: int,
     metrics["algorithm"] = "Genetic Algorithm (Load Balancing)"
     return metrics
 
+
 def compute_detailed_metrics(arrival_times: List[int], burst_times: List[int], order: List[int]) -> Dict:
     n = len(burst_times)
+    if n == 0:
+        return {
+            "arrival_times": arrival_times,
+            "burst_times": burst_times,
+            "order": order,
+            "start_times": [],
+            "completion_times": [],
+            "waiting_times": [],
+            "turnaround_times": [],
+            "response_times": [],
+            "avg_waiting": 0,
+            "avg_turnaround": 0,
+            "avg_response": 0,
+        }
+
     completion_times = [0] * n
     turnaround_times = [0] * n
     waiting_times = [0] * n
@@ -169,9 +206,9 @@ def compute_detailed_metrics(arrival_times: List[int], burst_times: List[int], o
         "waiting_times": waiting_times,
         "turnaround_times": turnaround_times,
         "response_times": response_times,
-        "avg_waiting": sum(waiting_times) / n,
-        "avg_turnaround": sum(turnaround_times) / n,
-        "avg_response": sum(response_times) / n,
+        "avg_waiting": sum(waiting_times) / n if n > 0 else 0,
+        "avg_turnaround": sum(turnaround_times) / n if n > 0 else 0,
+        "avg_response": sum(response_times) / n if n > 0 else 0,
     }
 
 
@@ -244,9 +281,9 @@ def srtf_scheduling(arrival_times: List[int], burst_times: List[int]) -> Dict:
         "waiting_times": waiting_times,
         "turnaround_times": turnaround_times,
         "response_times": response_times,
-        "avg_waiting": sum(waiting_times) / n,
-        "avg_turnaround": sum(turnaround_times) / n,
-        "avg_response": sum(response_times) / n,
+        "avg_waiting": sum(waiting_times) / n if n > 0 else 0,
+        "avg_turnaround": sum(turnaround_times) / n if n > 0 else 0,
+        "avg_response": sum(response_times) / n if n > 0 else 0,
     }
 
 
@@ -292,7 +329,114 @@ def hrrn_scheduling(arrival_times: List[int], burst_times: List[int]) -> Dict:
         "waiting_times": waiting_times,
         "turnaround_times": turnaround_times,
         "response_times": response_times,
-        "avg_waiting": sum(waiting_times) / n,
-        "avg_turnaround": sum(turnaround_times) / n,
-        "avg_response": sum(response_times) / n,
+        "avg_waiting": sum(waiting_times) / n if n > 0 else 0,
+        "avg_turnaround": sum(turnaround_times) / n if n > 0 else 0,
+        "avg_response": sum(response_times) / n if n > 0 else 0,
     }
+
+
+# --- Intelligent CI/CD Load Balancing Algorithms (IRB LB & RRB LB) ---
+
+def irb_load(requests: int, service_caps: List[Dict[str, float]]) -> Dict:
+    """
+    IRB LB: Instance Resource-Based Load Balancer (simulated).
+    service_caps: list of dicts, each with keys:
+      - 'cpu_capacity' (float) : max CPU units available
+      - 'mem_capacity' (float) : max memory units available
+      - optionally 'cpu_cost' (float) : cost per request in CPU units (default 1)
+      - optionally 'mem_cost' (float) : cost per request in memory units (default 1)
+    Strategy:
+      For each incoming request, pick the instance with the largest available capacity
+      where available capacity is computed as (cpu_capacity - used_cpu) + (mem_capacity - used_mem).
+    Returns compute_load_metrics on final distribution with algorithm name and a summary of capacities.
+    """
+    num_services = len(service_caps)
+    if num_services == 0:
+        return compute_load_metrics([])  # empty
+
+    used_cpu = [0.0] * num_services
+    used_mem = [0.0] * num_services
+    distribution = [0] * num_services
+
+    # normalize missing fields and ensure floats
+    caps = []
+    for s in service_caps:
+        caps.append({
+            "cpu_capacity": float(s.get("cpu_capacity", 1.0)),
+            "mem_capacity": float(s.get("mem_capacity", 1.0)),
+            "cpu_cost": float(s.get("cpu_cost", 1.0)),
+            "mem_cost": float(s.get("mem_cost", 1.0)),
+        })
+
+    for _ in range(requests):
+        # compute available capacity for every service
+        avail = []
+        for i in range(num_services):
+            cpu_avail = max(0.0, caps[i]["cpu_capacity"] - used_cpu[i])
+            mem_avail = max(0.0, caps[i]["mem_capacity"] - used_mem[i])
+            # weighted sum: CPU and MEM both matter (weights = 1 here, could be tuned)
+            avail_score = cpu_avail + mem_avail
+            avail.append(avail_score)
+
+        # pick service with maximum available capacity (break ties by lower index)
+        idx = max(range(num_services), key=lambda i: (avail[i], -i))
+        distribution[idx] += 1
+        used_cpu[idx] += caps[idx]["cpu_cost"]
+        used_mem[idx] += caps[idx]["mem_cost"]
+
+    metrics = compute_load_metrics(distribution)
+    metrics["algorithm"] = "IRB LB (Instance Resource-Based)"
+    metrics["service_capacities_summary"] = [
+        {"cpu_capacity": c["cpu_capacity"], "mem_capacity": c["mem_capacity"]} for c in caps
+    ]
+    return metrics
+
+
+def rrb_load(requests: int, num_services: int, epsilon: float = 0.1,
+             learning_rate: float = 0.2, base_resp_low: float = 1.0,
+             base_resp_high: float = 3.0) -> Dict:
+    """
+    RRB LB: Reinforcement Round-Robin / Reward-based load balancer (simulated).
+    - Uses epsilon-greedy selection over Q-values per service.
+    - Simulates a response time for each assignment which depends on current load.
+    - Q-values are updated online with a simple TD-like rule: Q <- Q + lr * (reward - Q)
+      where reward = 1 / response_time (higher reward for lower response time).
+    - Parameters:
+      epsilon: exploration probability
+      learning_rate: how quickly Q-values are updated
+      base_resp_low/high: base response time range for services (randomized per service)
+    Returns metrics computed with compute_load_metrics and final Q-values.
+    """
+    if num_services <= 0:
+        return compute_load_metrics([])
+
+    Q = [1.0] * num_services  # estimated value (higher is better)
+    distribution = [0] * num_services
+    loads = [0] * num_services
+    # assign each service a base response characteristic
+    base_resp = [random.uniform(base_resp_low, base_resp_high) for _ in range(num_services)]
+
+    for _ in range(requests):
+        # epsilon-greedy selection
+        if random.random() < epsilon:
+            idx = random.randint(0, num_services - 1)
+        else:
+            idx = max(range(num_services), key=lambda i: Q[i])
+
+        # simulate response time: base_resp * (1 + alpha * load)
+        alpha = 0.15  # tunable sensitivity to load
+        response_time = base_resp[idx] * (1.0 + alpha * loads[idx])
+
+        # compute reward and update Q
+        reward = 1.0 / (response_time + 1e-9)  # avoid div0
+        Q[idx] = Q[idx] + learning_rate * (reward - Q[idx])
+
+        # assign request
+        distribution[idx] += 1
+        loads[idx] += 1
+
+    metrics = compute_load_metrics(distribution)
+    metrics["algorithm"] = "RRB LB (Reinforcement Round-Robin)"
+    metrics["Q_values"] = [round(q, 4) for q in Q]
+    metrics["base_response_characteristics"] = [round(b, 3) for b in base_resp]
+    return metrics

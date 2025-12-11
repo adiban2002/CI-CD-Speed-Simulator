@@ -1,14 +1,19 @@
 from simulator.strategy import (
+    # Build strategies
     sequential_build,
     parallel_build,
     cached_build,
     slim_image_build,
 
+    # Load balancing strategies
     round_robin_load,
     least_connections_load,
     random_load,
     genetic_algorithm_load,
+    irb_load,            # NEW
+    rrb_load,            # NEW
 
+    # Scheduling algorithms
     fcfs_scheduling,
     sjf_scheduling,
     srtf_scheduling,
@@ -40,6 +45,8 @@ __all__ = [
     "least_connections_load",
     "random_load",
     "genetic_algorithm_load",
+    "irb_load",     # NEW
+    "rrb_load",     # NEW
 
     # Scheduling algorithms
     "fcfs_scheduling",
