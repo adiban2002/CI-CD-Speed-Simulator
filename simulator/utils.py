@@ -4,83 +4,69 @@ import csv
 import os
 from typing import List, Dict, Iterable, Optional, Sequence, Any
 
-# Default CSV header used across the project (keeps logs consistent)
+# ============================================================
+# CSV HEADERS (GLOBAL CONSISTENCY)
+# ============================================================
 DEFAULT_CSV_HEADERS = [
     "phase", "strategy", "algorithm",
     "total_time", "speedup", "efficiency",
     "avg_load", "max_load", "min_load", "variance",
     "fairness_index", "load_imbalance",
-    "avg_waiting", "avg_turnaround", "avg_response"
+    "avg_waiting", "avg_turnaround", "avg_response",
+    # Advanced / AI fields (optional, auto-added if used)
+    "Q_values", "final_Q",
+    "iot_score", "iot_signals",
+    "transfer_ratio"
 ]
 
+# ============================================================
+# BASIC RANDOM & STATISTICAL UTILITIES
+# ============================================================
 
 def random_delay(base: int, variation: int = 2, allow_negative: bool = False) -> int:
-    """
-    Return an integer delay around `base` with up to `variation` randomness.
-    If allow_negative is False, result is at least 0.
-    """
     if allow_negative:
         return max(0, base + random.randint(-variation, variation))
     return max(0, base + random.randint(0, variation))
 
 
 def average_load(distribution: Sequence[float]) -> float:
-    """Population average (mean) of the distribution; returns 0 for empty input."""
-    if not distribution:
-        return 0.0
-    return float(sum(distribution)) / float(len(distribution))
+    return float(sum(distribution)) / float(len(distribution)) if distribution else 0.0
 
 
 def max_load(distribution: Sequence[float]) -> float:
-    """Maximum value in distribution or 0 for empty."""
     return float(max(distribution)) if distribution else 0.0
 
 
 def min_load(distribution: Sequence[float]) -> float:
-    """Minimum value in distribution or 0 for empty."""
     return float(min(distribution)) if distribution else 0.0
 
 
 def variance_load(distribution: Sequence[float]) -> float:
-    """
-    Population variance for the distribution (statistics.pvariance).
-    Returns 0 for empty or single-element input.
-    """
     if len(distribution) <= 1:
         return 0.0
     return float(statistics.pvariance(distribution))
 
 
 def stdev_load(distribution: Sequence[float]) -> float:
-    """Population standard deviation (sqrt of pvariance)."""
     if len(distribution) <= 1:
         return 0.0
     return float(statistics.pvariance(distribution) ** 0.5)
 
 
 def fairness_index(distribution: Sequence[float]) -> float:
-    """
-    Jain's fairness index:
-    (sum(x))^2 / (n * sum(x^2))
-    Returns 1.0 when distribution is empty or all zeros (treated as perfectly fair).
-    """
     if not distribution:
         return 1.0
     total = float(sum(distribution))
-    if total == 0.0:
+    if total == 0:
         return 1.0
     n = len(distribution)
     sum_sq = float(sum(x ** 2 for x in distribution))
-    if sum_sq == 0.0:
+    if sum_sq == 0:
         return 1.0
     return (total ** 2) / (n * sum_sq)
 
 
 def load_imbalance(distribution: Sequence[float]) -> float:
-    """
-    A simple imbalance metric: (max_load / avg_load) - 1
-    Returns 0.0 for empty distributions or when avg_load is zero.
-    """
     if not distribution:
         return 0.0
     avg = average_load(distribution)
@@ -90,143 +76,150 @@ def load_imbalance(distribution: Sequence[float]) -> float:
 
 
 def speedup(sequential_time: float, parallel_time: float) -> float:
-    """Compute speedup = T_seq / T_parallel (safe guard for zero)."""
     try:
-        return float(sequential_time) / float(parallel_time) if float(parallel_time) > 0 else 0.0
+        return float(sequential_time) / float(parallel_time) if parallel_time > 0 else 0.0
     except (TypeError, ValueError):
         return 0.0
 
 
 def efficiency(sequential_time: float, parallel_time: float, resources: int) -> float:
-    """
-    Efficiency = speedup / resources.
-    Returns 0 on invalid inputs.
-    """
     if resources <= 0:
         return 0.0
-    sp = speedup(sequential_time, parallel_time)
-    return float(sp) / float(resources) if resources > 0 else 0.0
+    return speedup(sequential_time, parallel_time) / float(resources)
 
-
-def normalize_distribution(distribution: Sequence[float]) -> List[float]:
-    """
-    Convert any sequence to a list of floats (useful before numeric ops).
-    """
-    return [float(x) for x in distribution]
-
-
-# --- Helpers useful for IRB / RRB algorithms ---
+# ============================================================
+# IRB (RESOURCE-AWARE) HELPERS
+# ============================================================
 
 def resource_score(cpu_capacity: float, mem_capacity: float,
                    used_cpu: float = 0.0, used_mem: float = 0.0,
                    cpu_weight: float = 1.0, mem_weight: float = 1.0) -> float:
-    """
-    Compute a weighted resource availability score for an instance.
-    Example usage in IRB:
-        score = resource_score(cpu_cap, mem_cap, used_cpu, used_mem, cpu_weight=1.0, mem_weight=1.0)
-    Higher score means more available capacity.
-    """
     cpu_avail = max(0.0, float(cpu_capacity) - float(used_cpu))
     mem_avail = max(0.0, float(mem_capacity) - float(used_mem))
     return cpu_weight * cpu_avail + mem_weight * mem_avail
 
+# ============================================================
+# REINFORCEMENT / TL HELPERS
+# ============================================================
 
-def rl_update(Q: List[float], idx: int, reward: float, learning_rate: float = 0.2) -> float:
-    """
-    One-step Q-value update:
-        Q[idx] = Q[idx] + lr * (reward - Q[idx])
-    Returns the updated Q[idx]. Mutates the provided Q list.
-    """
+def rl_update(Q: List[float], idx: int, reward: float,
+              learning_rate: float = 0.2) -> float:
     if not (0 <= idx < len(Q)):
         raise IndexError("rl_update: idx out of range")
-    try:
-        q_old = float(Q[idx])
-        r = float(reward)
-        lr = float(learning_rate)
-    except (TypeError, ValueError):
-        return Q[idx]
-
-    q_new = q_old + lr * (r - q_old)
+    q_old = float(Q[idx])
+    q_new = q_old + learning_rate * (float(reward) - q_old)
     Q[idx] = q_new
     return q_new
 
 
-# --- CSV logging helper (improved) ---
+def init_transfer_q(source_q: Sequence[float],
+                    target_size: int,
+                    transfer_ratio: float = 0.7) -> List[float]:
+    """
+    Initialize Q-values for TL-based LB using transferred knowledge.
+
+    transfer_ratio ∈ [0,1]:
+      1.0 → full transfer
+      0.0 → no transfer (cold start)
+    """
+    target_q = [1.0] * target_size
+    for i in range(min(len(source_q), target_size)):
+        target_q[i] = transfer_ratio * float(source_q[i]) + (1 - transfer_ratio) * 1.0
+    return target_q
+
+
+def transfer_effectiveness(source_q: Sequence[float],
+                           target_q: Sequence[float]) -> float:
+    """
+    Measures how much transferred knowledge influenced the final policy.
+    """
+    if not source_q or not target_q:
+        return 0.0
+    n = min(len(source_q), len(target_q))
+    diff = sum(abs(float(source_q[i]) - float(target_q[i])) for i in range(n))
+    return 1.0 / (1.0 + diff)
+
+# ============================================================
+# IOT-BASED SIGNAL PROCESSING HELPERS
+# ============================================================
+
+def normalize_signal(value: float,
+                     min_val: float,
+                     max_val: float) -> float:
+    if max_val == min_val:
+        return 0.0
+    return max(0.0, min(1.0, (value - min_val) / (max_val - min_val)))
+
+
+def iot_load_score(cpu_usage: float,
+                   latency: float,
+                   queue_depth: float,
+                   w_cpu: float = 0.4,
+                   w_latency: float = 0.4,
+                   w_queue: float = 0.2) -> float:
+    """
+    Compute a composite IoT-aware load score.
+    Lower score ⇒ better candidate for load assignment.
+    """
+    return (
+        w_cpu * cpu_usage +
+        w_latency * latency +
+        w_queue * queue_depth
+    )
+
+
+def aggregate_iot_signals(signals: Dict[str, float]) -> float:
+    """
+    Aggregate arbitrary IoT signals into a single score.
+    """
+    if not signals:
+        return 0.0
+    return sum(float(v) for v in signals.values()) / len(signals)
+
+# ============================================================
+# CSV LOGGING (ROBUST, EXTENSIBLE)
+# ============================================================
 
 def save_results_csv(result: Dict[str, Any],
                      phase: str,
                      filename: str = "logs/results.csv",
                      headers: Optional[Sequence[str]] = None) -> None:
-    """
-    Append a result row to CSV (creates file and headers if not present).
 
-    - result: mapping of column_name -> value for the run (can contain subset of headers)
-    - phase: top-level phase string (e.g., "Build", "LoadBalancing", "Scheduling")
-    - filename: path to CSV file
-    - headers: optional header list; if not provided DEFAULT_CSV_HEADERS used
-
-    The function will:
-      - create parent directory if needed
-      - write a consistent header (headers param or DEFAULT_CSV_HEADERS)
-      - fill missing columns with empty string
-    """
     headers = list(headers) if headers is not None else DEFAULT_CSV_HEADERS
-    # Guarantee phase is the first header
+
     if headers[0] != "phase":
         headers = ["phase"] + [h for h in headers if h != "phase"]
 
-    # ensure directory exists
-    dirpath = os.path.dirname(filename) or "."
-    os.makedirs(dirpath, exist_ok=True)
+    os.makedirs(os.path.dirname(filename) or ".", exist_ok=True)
+    file_exists = os.path.exists(filename)
 
-    write_header = not os.path.exists(filename)
-
-    # prepare row following the header order
-    row = {h: "" for h in headers}
-    row["phase"] = phase
-    for k, v in result.items():
-        if k in row:
-            row[k] = v
-        else:
-            # If result contains keys outside headers, append them as well (extend headers)
-            row[k] = v
-
-    # If there are keys outside headers, we need to rewrite header to include them.
+    # Expand headers dynamically if new keys appear
     extra_keys = [k for k in result.keys() if k not in headers]
-    if extra_keys and not write_header:
-        # read existing header to see if rewrite needed
-        try:
-            with open(filename, newline="", mode="r") as rfile:
-                existing = csv.reader(rfile)
-                existing_header = next(existing, None)
-        except Exception:
-            existing_header = None
+    if extra_keys and file_exists:
+        with open(filename, newline="", mode="r") as rf:
+            reader = csv.reader(rf)
+            existing_header = next(reader, headers)
+        missing = [k for k in extra_keys if k not in existing_header]
+        if missing:
+            rows = []
+            with open(filename, newline="", mode="r") as rf:
+                reader = csv.DictReader(rf)
+                rows = list(reader)
+            new_headers = list(existing_header) + missing
+            with open(filename, newline="", mode="w") as wf:
+                writer = csv.DictWriter(wf, fieldnames=new_headers)
+                writer.writeheader()
+                for r in rows:
+                    writer.writerow({h: r.get(h, "") for h in new_headers})
+            headers = new_headers
 
-        if existing_header is not None:
-            # if existing header doesn't contain extras, rewrite file with extended header
-            missing = [k for k in extra_keys if k not in existing_header]
-            if missing:
-                new_headers = list(existing_header) + missing
-                # read existing rows
-                with open(filename, newline="", mode="r") as rfile:
-                    reader = csv.DictReader(rfile)
-                    rows = list(reader)
-                # write back with new headers
-                with open(filename, newline="", mode="w") as wfile:
-                    writer = csv.DictWriter(wfile, fieldnames=new_headers)
-                    writer.writeheader()
-                    for r in rows:
-                        # ensure all keys exist
-                        out = {h: r.get(h, "") for h in new_headers}
-                        writer.writerow(out)
-                write_header = False
-                headers = new_headers
-
-    # finally append (open in append mode)
     with open(filename, mode="a", newline="") as file:
         writer = csv.DictWriter(file, fieldnames=headers)
-        if write_header:
+        if not file_exists:
             writer.writeheader()
-        # ensure the row contains exactly header keys (extra keys ignored here)
-        outrow = {h: row.get(h, "") for h in headers}
-        writer.writerow(outrow)
+        row = {h: "" for h in headers}
+        row["phase"] = phase
+        for k, v in result.items():
+            if k in row:
+                row[k] = v
+        writer.writerow(row)
