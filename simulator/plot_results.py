@@ -5,6 +5,10 @@ import sys
 import ast
 import numpy as np
 
+# -------------------------------------------------
+# PATHS
+# -------------------------------------------------
+
 GRAPHS_DIR = "graphs"
 LOG_PATH = "logs/results.csv"
 
@@ -16,14 +20,16 @@ if not os.path.exists(LOG_PATH):
 
 df = pd.read_csv(LOG_PATH)
 
-# -----------------------------
-# Helpers
-# -----------------------------
+# -------------------------------------------------
+# HELPERS
+# -------------------------------------------------
+
 def to_numeric_safe(df, cols):
     for c in cols:
         if c in df.columns:
             df[c] = pd.to_numeric(df[c], errors="coerce")
     return df
+
 
 numeric_cols = [
     "total_time", "speedup", "efficiency",
@@ -36,21 +42,24 @@ df = to_numeric_safe(df, numeric_cols)
 # =====================================================
 # BUILD PHASE
 # =====================================================
-build_df = df[df["phase"] == "Build"].copy()
+
+build_df = df[df["phase"] == "Build"]
 if not build_df.empty and "strategy" in build_df.columns:
     bgrp = build_df.groupby("strategy").mean(numeric_only=True).reset_index()
 
-    for metric, fname, ylabel in [
-        ("total_time", "build_total_time.png", "Total Time"),
+    plots = [
+        ("total_time", "build_total_time.png", "Total Build Time"),
         ("speedup", "build_speedup.png", "Speedup"),
         ("efficiency", "build_efficiency.png", "Efficiency"),
-    ]:
+    ]
+
+    for metric, fname, ylabel in plots:
         if metric in bgrp.columns:
             plt.figure(figsize=(8, 5))
             plt.plot(bgrp["strategy"], bgrp[metric], marker="o")
             plt.xlabel("Build Strategy")
             plt.ylabel(ylabel)
-            plt.title(f"Build Algorithms — {ylabel}")
+            plt.title(f"Build Phase — {ylabel}")
             plt.xticks(rotation=45, ha="right")
             plt.grid(True, linestyle="--", alpha=0.6)
             plt.tight_layout()
@@ -58,9 +67,10 @@ if not build_df.empty and "strategy" in build_df.columns:
             plt.close()
 
 # =====================================================
-# LOAD BALANCING PHASE (ALL ALGORITHMS)
+# LOAD BALANCING — CORE METRICS
 # =====================================================
-lb_df = df[df["phase"] == "LoadBalancing"].copy()
+
+lb_df = df[df["phase"] == "LoadBalancing"]
 if not lb_df.empty and "algorithm" in lb_df.columns:
     lb_grp = lb_df.groupby("algorithm").mean(numeric_only=True).reset_index()
 
@@ -85,15 +95,17 @@ if not lb_df.empty and "algorithm" in lb_df.columns:
 # =====================================================
 # IRB — RESOURCE CAPACITY ANALYSIS
 # =====================================================
+
 if "service_capacities_summary" in lb_df.columns:
     irb_rows = lb_df[lb_df["algorithm"].str.contains("IRB", na=False)]
+
     cpu_all, mem_all = [], []
 
     for val in irb_rows["service_capacities_summary"].dropna():
         try:
             parsed = ast.literal_eval(val)
-            cpu_all.append([d["cpu_capacity"] for d in parsed])
-            mem_all.append([d["mem_capacity"] for d in parsed])
+            cpu_all.append([d.get("cpu_capacity", 0) for d in parsed])
+            mem_all.append([d.get("mem_capacity", 0) for d in parsed])
         except Exception:
             pass
 
@@ -106,7 +118,7 @@ if "service_capacities_summary" in lb_df.columns:
         plt.plot(np.nanmean(cpu_arr, axis=0), marker="o", label="CPU Capacity")
         plt.plot(np.nanmean(mem_arr, axis=0), marker="s", label="Memory Capacity")
         plt.xlabel("Instance Index")
-        plt.ylabel("Capacity")
+        plt.ylabel("Capacity (units)")
         plt.title("IRB LB — Average Instance Capacities")
         plt.legend()
         plt.grid(True, linestyle="--", alpha=0.6)
@@ -117,18 +129,21 @@ if "service_capacities_summary" in lb_df.columns:
 # =====================================================
 # RRB & TL — Q-VALUE ANALYSIS
 # =====================================================
-def plot_q_values(rows, fname, title):
+
+def plot_q_values(series, fname, title):
     q_all = []
-    for v in rows.dropna():
+    for v in series.dropna():
         try:
             parsed = ast.literal_eval(v)
-            q_all.append(parsed)
+            if isinstance(parsed, list):
+                q_all.append(parsed)
         except Exception:
             pass
 
     if q_all:
         max_len = max(len(x) for x in q_all)
         q_arr = np.array([x + [np.nan]*(max_len-len(x)) for x in q_all])
+
         plt.figure(figsize=(8,5))
         plt.plot(np.nanmean(q_arr, axis=0), marker="o")
         plt.xlabel("Service Index")
@@ -141,22 +156,23 @@ def plot_q_values(rows, fname, title):
 
 if "Q_values" in lb_df.columns:
     rrb_rows = lb_df[lb_df["algorithm"].str.contains("RRB", na=False)]["Q_values"]
-    plot_q_values(rrb_rows, "rrb_q_values.png", "RRB — Average Final Q-Values")
+    plot_q_values(rrb_rows, "rrb_q_values.png", "RRB LB — Average Q-values")
 
 if "final_Q" in lb_df.columns:
     tl_rows = lb_df[lb_df["algorithm"].str.contains("TL", na=False)]["final_Q"]
-    plot_q_values(tl_rows, "tl_q_values.png", "TL-LB — Transferred & Adapted Q-Values")
+    plot_q_values(tl_rows, "tl_q_values.png", "TL-based LB — Transferred Q-values")
 
 # =====================================================
-# IOT-LB — SIGNAL SENSITIVITY ANALYSIS
+# IoT-LB — VARIANCE vs FAIRNESS
 # =====================================================
+
 iot_rows = lb_df[lb_df["algorithm"].str.contains("IoT", na=False)]
 if not iot_rows.empty:
     plt.figure(figsize=(8,5))
     plt.scatter(iot_rows["variance"], iot_rows["fairness_index"], alpha=0.7)
     plt.xlabel("Variance")
     plt.ylabel("Fairness Index")
-    plt.title("IoT-LB — Variance vs Fairness")
+    plt.title("IoT-based LB — Variance vs Fairness")
     plt.grid(True, linestyle="--", alpha=0.6)
     plt.tight_layout()
     plt.savefig(os.path.join(GRAPHS_DIR, "iot_variance_vs_fairness.png"))
@@ -165,14 +181,18 @@ if not iot_rows.empty:
 # =====================================================
 # SCHEDULING PHASE
 # =====================================================
-sched_df = df[df["phase"] == "Scheduling"].copy()
+
+sched_df = df[df["phase"] == "Scheduling"]
 if not sched_df.empty and "algorithm" in sched_df.columns:
     sgrp = sched_df.groupby("algorithm").mean(numeric_only=True).reset_index()
 
     plt.figure(figsize=(9,6))
-    for col, style in zip(["avg_waiting", "avg_turnaround", "avg_response"], ["o", "s", "^"]):
+    for col, marker in zip(
+        ["avg_waiting", "avg_turnaround", "avg_response"],
+        ["o", "s", "^"]
+    ):
         if col in sgrp.columns:
-            plt.plot(sgrp["algorithm"], sgrp[col], marker=style, label=col)
+            plt.plot(sgrp["algorithm"], sgrp[col], marker=marker, label=col)
 
     plt.xlabel("Scheduling Algorithm")
     plt.ylabel("Time")
@@ -184,4 +204,4 @@ if not sched_df.empty and "algorithm" in sched_df.columns:
     plt.savefig(os.path.join(GRAPHS_DIR, "scheduling_times.png"))
     plt.close()
 
-print(f"✅ Graphs generated in '{GRAPHS_DIR}/'")
+print(f"✅ Graphs generated successfully in '{GRAPHS_DIR}/'")
