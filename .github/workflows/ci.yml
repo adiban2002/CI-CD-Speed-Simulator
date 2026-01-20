@@ -1,0 +1,9 @@
+name: Placeholder
+
+on: workflow_dispatch
+
+jobs:
+  dummy:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Will configure later"
